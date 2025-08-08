@@ -634,22 +634,45 @@ Function Get-ClangIncludeDirectories( [Parameter(Mandatory=$false)][string[]] $i
                                     , [Parameter(Mandatory=$false)][string[]] $additionalIncludeDirectories
                                     )
 {
-  [string[]] $returnDirs = @()
+  # Build a unique, ordered set of include paths, preferring -isystem over -I when duplicated
+  $pathToFlag = @{}
+  [System.Collections.Generic.List[string]] $orderedPaths = [System.Collections.Generic.List[string]]::new()
+
+  function Add-IncludePath([string] $path, [string] $flag)
+  {
+    if ([string]::IsNullOrWhiteSpace($path)) { return }
+    # normalize for comparison
+    [string] $norm = $path.Trim().Trim('"').Replace('/', '\\').TrimEnd('\\')
+    if ($pathToFlag.ContainsKey($norm))
+    {
+      if ($flag -eq '-isystem') { $pathToFlag[$norm] = $flag }
+      return
+    }
+    $pathToFlag[$norm] = $flag
+    $orderedPaths.Add($norm) > $null
+  }
 
   foreach ($includeDir in $includeDirectories)
   {
-    $returnDirs += ("-isystem" + (Get-QuotedPath $includeDir))
+    Add-IncludePath -path $includeDir -flag '-isystem'
   }
+
   foreach ($includeDir in $additionalIncludeDirectories)
   {
     if ($aTreatAdditionalIncludesAsSystemIncludes)
     {
-      $returnDirs += ("-isystem" + (Get-QuotedPath $includeDir))
+      Add-IncludePath -path $includeDir -flag '-isystem'
     }
     else
     {
-      $returnDirs += ("-I"+ (Get-QuotedPath $includeDir))
+      Add-IncludePath -path $includeDir -flag '-I'
     }
+  }
+
+  [string[]] $returnDirs = @()
+  foreach ($p in $orderedPaths)
+  {
+    $returnDirs += ($pathToFlag[$p] + (Get-QuotedPath $p))
   }
 
   return $returnDirs
