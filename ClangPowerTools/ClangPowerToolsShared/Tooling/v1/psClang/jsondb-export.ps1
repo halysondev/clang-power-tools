@@ -34,9 +34,9 @@ function JsonDB-Push($directory, $file, $command)
   # escape double quotes
   $command = $command.Replace('"', '\"')
   
-  # make paths relative to directory
-  $command = $command.Replace("$directory/", "")
-  $file = $file.Replace("$directory/", "")
+  # keep command absolute to preserve visibility of external include paths in compile_commands.json
+  # keep file relative to directory if applicable
+  if ($file.StartsWith("$directory/")) { $file = $file.Replace("$directory/", "") }
   
   JsonDB-Append "  {`r`n    ""directory"": ""$directory"",`r`n    ""command"": ""$command"",`r`n    ""file"": ""$file""`r`n  }"
    
