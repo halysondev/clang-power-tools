@@ -119,6 +119,10 @@ namespace ClangPowerTools.Script
       if (!string.IsNullOrWhiteSpace(compilerSettings.ProjectsToIgnore))
         parameters.Append($" {ScriptConstants.kProjectsToIgnore} ('{TransformInPowerShellArray(compilerSettings.ProjectsToIgnore)}')");
 
+      // Get vcpkg include override
+      if (!string.IsNullOrWhiteSpace(compilerSettings.VcpkgIncludeOverride))
+        parameters.Append($" {ScriptConstants.kVcpkgIncludeOverride} '{compilerSettings.VcpkgIncludeOverride}'");
+
       // Get the files to ignore list
       if (!string.IsNullOrWhiteSpace(compilerSettings.FilesToIgnore))
         parameters.Append($" {ScriptConstants.kFilesToIgnore} ('{TransformInPowerShellArray(compilerSettings.FilesToIgnore)}')");

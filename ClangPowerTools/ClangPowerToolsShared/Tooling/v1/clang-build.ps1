@@ -191,6 +191,10 @@ param( [alias("proj")]
      , [alias("export-jsondb")]
        [Parameter(Mandatory=$false, HelpMessage="Switch to generate a JSON compilation database file, in the current working directory")]
        [switch]   $aExportJsonDB
+
+      , [alias("vcpkg-include-override")]
+      [Parameter(Mandatory=$false, HelpMessage="Override vcpkg include directory used in compile_commands.json and clang invocations")]
+      [string]   $aVcpkgIncludeOverride
      )
 
 Set-StrictMode -version latest

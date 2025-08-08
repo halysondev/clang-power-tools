@@ -13,6 +13,8 @@ namespace ClangPowerTools
 
     public string ProjectsToIgnore { get; set; } = string.Empty;
 
+    public string VcpkgIncludeOverride { get; set; } = string.Empty;
+
     public ClangGeneralAdditionalIncludes AdditionalIncludes { get; set; } = ClangGeneralAdditionalIncludes.IncludeDirectories;
 
     public bool WarningsAsErrors { get; set; } = false;

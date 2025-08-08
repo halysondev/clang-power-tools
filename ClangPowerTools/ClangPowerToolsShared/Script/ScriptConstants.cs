@@ -102,6 +102,7 @@ namespace ClangPowerTools
     public const string kClangFlags = "-clang-flags";
     public const string kIncludeDirectores = "-include-dirs";
     public const string kProjectsToIgnore = "-proj-ignore";
+    public const string kVcpkgIncludeOverride = "-vcpkg-include-override";
     public const string kFilesToIgnore = "-file-ignore";
 
     public const string kVsVersion = "-vs-ver";

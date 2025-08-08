@@ -1,3 +1,26 @@
+Function Get-ProjectExternalIncludePaths()
+{
+    # 1) explicit override via script parameter
+    if ( (VariableExistsAndNotEmpty -name "aVcpkgIncludeOverride") -and (![string]::IsNullOrWhiteSpace($aVcpkgIncludeOverride)) )
+    {
+        return Get-ProjCanonizedPaths -rawPaths $aVcpkgIncludeOverride
+    }
+
+    # 2) auto-detect local vcpkg (manifest) under project/solution dir
+    [string[]] $localVcpkgPaths = @(Get-LocalVcpkgIncludePaths)
+    if ($localVcpkgPaths -and $localVcpkgPaths.Count -gt 0)
+    {
+        return Get-ProjCanonizedPaths -rawPaths ($localVcpkgPaths -join ";")
+    }
+
+    # 3) fallback to MSBuild ExternalIncludePath (usually user vcpkg)
+    if (!(VariableExistsAndNotEmpty -name "ExternalIncludePath"))
+    {
+       return @()
+    }
+    return Get-ProjCanonizedPaths -rawPaths $ExternalIncludePath
+}
+
 #-------------------------------------------------------------------------------------------------
 # PlatformToolset constants
 
@@ -192,15 +215,16 @@ Function Get-Project-CppStandard()
         $cppStd = $kDefaultCppStd
     }
 
-    $cppStdMap = @{ 'stdcpplatest' = 'c++20'
-                  ; 'stdcpp14'     = 'c++14'
-                  ; 'stdcpp17'     = 'c++17'
-                  ; 'stdcpp20'     = 'c++20'
+    $cppStdMap = @{ 'stdcpplatest'      = 'c++2c'
+                  ; 'stdcpp14'          = 'c++14'
+                  ; 'stdcpp17'          = 'c++17'
+                  ; 'stdcpp20'          = 'c++20'
+                  ; 'stdcpp23preview'   = 'c++23'
+                  ; 'stdcpp23'          = 'c++23'
+                  ; 'stdcpp26'          = 'c++2c'
+                  ; '/std:c++23preview' = 'c++23'
+                  ; '/std:c++latest'    = 'c++2c'
                   }
-    if ($kLLVMVersion -ge 13)
-    {
-        $cppStdMap['stdcpplatest'] = 'c++2b'
-    }
 
     [string] $cppStdClangValue = $cppStdMap[$cppStd]
 
@@ -429,6 +453,119 @@ Function Get-ProjectPreprocessorDefines()
                    ForEach-Object { '"' + $(($kClangDefinePrefix + $_) -replace '"', '\"') + '"' } )
 
     return $defines
+}
+
+Function Get-ProjCanonizedPaths([Parameter(Mandatory = $true)][string] $rawPaths)
+{
+    [string[]] $tokens = @($rawPaths -split ";")
+
+    foreach ($token in $tokens)
+    {
+        if ([string]::IsNullOrWhiteSpace($token))
+        {
+            continue
+        }
+
+        [string] $includePath = Canonize-Path -base $ProjectDir -child $token.Trim() -ignoreErrors
+        if (![string]::IsNullOrEmpty($includePath))
+        {
+            $includePath -replace '\\$', ''
+        }
+    }
+}
+
+Function Get-LocalVcpkgIncludePaths
+{
+    [string[]] $result = @()
+
+    [string] $baseDir = ""
+    if (VariableExistsAndNotEmpty -name "ProjectDir")
+    {
+        [string] $projVcpkgInstalled = Join-Path -Path $ProjectDir -ChildPath "vcpkg_installed"
+        if (Test-Path -LiteralPath $projVcpkgInstalled) { $baseDir = $projVcpkgInstalled }
+    }
+    if ([string]::IsNullOrEmpty($baseDir) -and (VariableExistsAndNotEmpty -name "SolutionDir"))
+    {
+        [string] $slnVcpkgInstalled = Join-Path -Path $SolutionDir -ChildPath "vcpkg_installed"
+        if (Test-Path -LiteralPath $slnVcpkgInstalled) { $baseDir = $slnVcpkgInstalled }
+    }
+    if ([string]::IsNullOrEmpty($baseDir) -and (VariableExistsAndNotEmpty -name "VcpkgRoot"))
+    {
+        [string] $rootVcpkgInstalled = Join-Path -Path $VcpkgRoot -ChildPath "vcpkg_installed"
+        [string] $rootInstalled      = Join-Path -Path $VcpkgRoot -ChildPath "installed"
+        if     (Test-Path -LiteralPath $rootVcpkgInstalled) { $baseDir = $rootVcpkgInstalled }
+        elseif (Test-Path -LiteralPath $rootInstalled)      { $baseDir = $rootInstalled }
+    }
+
+    if ([string]::IsNullOrEmpty($baseDir)) { return @() }
+
+    # determine triplet
+    [string] $triplet = ""
+    if (VariableExistsAndNotEmpty -name "VcpkgTriplet") { $triplet = $VcpkgTriplet }
+
+    if ([string]::IsNullOrEmpty($triplet))
+    {
+        [string] $arch = if ($Platform -ieq "Win32" -or $Platform -ieq "x86") { "x86" } else { "x64" }
+        [bool] $useStatic = $false
+        if (VariableExistsAndNotEmpty -name "VcpkgUseStatic") { $useStatic = ($VcpkgUseStatic -ieq "true") }
+        [bool] $useMD = $true
+        if (VariableExistsAndNotEmpty -name "VcpkgUseMD")     { $useMD = ($VcpkgUseMD -ieq "true") }
+        else
+        {
+            # derive CRT MD/MT from RuntimeLibrary when explicit vcpkg flag is not set
+            try {
+                Set-ProjectItemContext "ClCompile"
+                [string] $runtimeLibrary = Get-ProjectItemProperty "RuntimeLibrary"
+                if ($runtimeLibrary)
+                {
+                    if (@("MultiThreaded","MultiThreadedDebug") -contains $runtimeLibrary) { $useMD = $false }
+                    else { $useMD = $true }
+                }
+            } catch {}
+        }
+
+        $triplet = "$arch-windows"
+        if ($useStatic)
+        {
+            if ($useMD) { $triplet += "-static-md" }
+            else        { $triplet += "-static"    }
+        }
+    }
+
+    [string[]] $candidates = @(
+        (Join-Path $baseDir (Join-Path $triplet "include"))
+       ,(Join-Path (Join-Path $baseDir $triplet) (Join-Path $triplet "include"))
+    )
+
+    foreach ($cand in $candidates)
+    {
+        if (Test-Path -LiteralPath $cand) { $result += $cand }
+    }
+
+    return $result
+}
+
+Function Get-ProjectExternalIncludePaths()
+{
+    # 1) explicit override via script parameter
+    if ( (VariableExistsAndNotEmpty -name "aVcpkgIncludeOverride") -and (![string]::IsNullOrWhiteSpace($aVcpkgIncludeOverride)) )
+    {
+        return Get-ProjCanonizedPaths -rawPaths $aVcpkgIncludeOverride
+    }
+
+    # 2) auto-detect local vcpkg (manifest) under project/solution dir
+    [string[]] $localVcpkgPaths = @(Get-LocalVcpkgIncludePaths)
+    if ($localVcpkgPaths -and $localVcpkgPaths.Count -gt 0)
+    {
+        return Get-ProjCanonizedPaths -rawPaths ($localVcpkgPaths -join ";")
+    }
+
+    # 3) fallback to MSBuild ExternalIncludePath (usually user vcpkg)
+    if (!(VariableExistsAndNotEmpty -name "ExternalIncludePath"))
+    {
+       return @()
+    }
+    return Get-ProjCanonizedPaths -rawPaths $ExternalIncludePath
 }
 
 Function Get-ProjectAdditionalIncludes()

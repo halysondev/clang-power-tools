@@ -6,6 +6,7 @@
     public string CompileFlags { get; } = "Flags given to clang++ when compiling project, alongside project - specific defines. If empty the default flags will be loaded.";
     public string FilesToIgnoreCompile { get; } = "Array of file(s) to ignore, from the matched ones. If empty, all already matched files are compiled.";
     public string ProjectsToIgnore { get; } = "Array of project(s) to ignore, from the matched ones. If empty, all already matched projects are compiled.";
+    public string VcpkgIncludeOverride { get; } = "Override the vcpkg include directory used by Clang Power Tools (takes precedence over auto-detected and MSBuild ExternalIncludePath).";
     public string AdditionalIncludes { get; } = "Specify how clang interprets project additional include directories: as regular includes(-I) or system includes (-isystem ).";
     public string WarningsAsErrors { get; } = "Treats all compiler warnings as errors. For a new project, it may be best to use in all compilations; resolving all warnings will ensure the fewest possible hard to find code defects.";
     public string ContinueOnError { get; } = "Switch to continue project compilation even when errors occur.";

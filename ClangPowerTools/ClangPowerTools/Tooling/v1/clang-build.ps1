@@ -181,6 +181,10 @@ param( [alias("proj")]
        [Parameter(Mandatory=$false, HelpMessage="Switch to generate a JSON compilation database file, in the current working directory")]
        [switch]   $aExportJsonDB
       
+      , [alias("vcpkg-include-override")]
+      [Parameter(Mandatory=$false, HelpMessage="Override vcpkg include directory used in compile_commands.json and clang invocations")]
+      [string]   $aVcpkgIncludeOverride
+      
      , [alias("export-doc")]
        [Parameter(Mandatory=$false, HelpMessage="If present, specifies the type of documentation to generate, in the current working direcotory")]
        [ValidateSet("yaml", "md", "html")]
@@ -1289,6 +1293,9 @@ Function Process-Project( [Parameter(Mandatory=$true)] [string]       $vcxprojPa
     Add-ToProjectSpecificVariables 'additionalIncludeDirectories'
 
     [string[]] $includeDirectories = @(Get-ProjectIncludeDirectories)
+    # We use the same mechanism for injecting external include paths
+    $includeDirectories += @(Get-IncludePathsFromAdditionalOptions)
+    $includeDirectories += @(Get-ProjectExternalIncludePaths)
     Write-Verbose-Array -array $includeDirectories -name "Include directories"
     Add-ToProjectSpecificVariables 'includeDirectories'
 

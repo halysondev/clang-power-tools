@@ -1,33 +1,55 @@
 param([Parameter(Mandatory=$true, HelpMessage="Increments revision number in manifest file")][string] $loc)
 
-#Get version from xml and increment revision value
-$filepath = "$loc\..\ClangPowerTools\source.extension.vsixmanifest"
-$filepathToAip = "$loc\..\ClangPowerTools.aip"
-if((Test-Path $filepath) -and (Test-Path $filepathToAip))
-{
-    #Get xml data from manifest file
-    [xml] $data = Get-Content $filepath
-    $currentVersion = [Version]::new($data.PackageManifest.Metadata.Identity.Version.ToString())
-    
-    #Get xml data from aip file
-    [xml] $aipData = Get-Content $filepathToAip
-		
-    #Replace old version with new one in manifest
-    $data.PackageManifest.Metadata.Identity.Version = $currentVersion.ToString()
-    $data.Save("$filepath")
+# Resolve candidate paths relative to provided location
+[string[]] $manifestCandidates = @(
+    (Join-Path $loc "..\ClangPowerTools\source.extension.vsixmanifest"),
+    (Join-Path $loc "ClangPowerTools\source.extension.vsixmanifest"),
+    (Join-Path $loc "..\source.extension.vsixmanifest"),
+    (Join-Path $loc "source.extension.vsixmanifest")
+)
 
-    #Replace old version with new one in aip file
-    $aipData.DOCUMENT.COMPONENT[0].ROW[7].Value = $currentVersion.ToString()
-    $aipData.Save("$filepathToAip")
-    $resultData = Get-Content $filepathToAip -Encoding utf8
-    $result = $resultData -replace " />", "/>"
-    # $result > $filepathToAip
-    $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding($False)
-    [System.IO.File]::WriteAllLines($filepathToAip, $result, $Utf8NoBomEncoding)
-}
-else 
+[string[]] $aipCandidates = @(
+    (Join-Path $loc "..\ClangPowerTools.aip"),
+    (Join-Path $loc "ClangPowerTools.aip")
+)
+
+$manifestPath = $manifestCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+$aipPath      = $aipCandidates      | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+
+if (-not $manifestPath)
 {
-    Write-Error "Invalid manifest file path"    
+    Write-Error "Invalid manifest file path"
+    exit 1
+}
+
+# Load VSIX manifest
+[xml] $data = Get-Content -LiteralPath $manifestPath
+[Version] $currentVersion = [Version]::new($data.PackageManifest.Metadata.Identity.Version.ToString())
+
+# Compute new version by incrementing the Revision component (create it if missing)
+[Version] $newVersion = $null
+if ($currentVersion.Revision -ge 0) {
+    $newVersion = [Version]::new($currentVersion.Major, $currentVersion.Minor, $currentVersion.Build, ($currentVersion.Revision + 1))
+}
+else {
+    # If Revision is missing, start at .1 (keep existing Build)
+    $newVersion = [Version]::new($currentVersion.Major, $currentVersion.Minor, $currentVersion.Build, 1)
+}
+
+# Update manifest
+$data.PackageManifest.Metadata.Identity.Version = $newVersion.ToString()
+$data.Save($manifestPath)
+
+# Optionally update .aip if present
+if ($aipPath)
+{
+    [xml] $aipData = Get-Content -LiteralPath $aipPath
+    $aipData.DOCUMENT.COMPONENT[0].ROW[7].Value = $newVersion.ToString()
+    $aipData.Save($aipPath)
+    $resultData = Get-Content $aipPath -Encoding utf8
+    $result = $resultData -replace " />", "/>"
+    $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding($False)
+    [System.IO.File]::WriteAllLines($aipPath, $result, $Utf8NoBomEncoding)
 }
 
 

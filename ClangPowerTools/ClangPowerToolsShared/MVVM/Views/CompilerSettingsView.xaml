@@ -153,8 +153,36 @@
       </Button>
     </WrapPanel>
 
-    <!--  Additional includes  -->
+    <!--  Vcpkg include override  -->
     <WrapPanel Grid.Row="4" Grid.Column="1">
+      <WrapPanel.ToolTip>
+        <ToolTip>
+          <TextBlock
+            MaxWidth="400"
+            Text="{Binding Tooltip.VcpkgIncludeOverride}"
+            TextWrapping="Wrap" />
+        </ToolTip>
+      </WrapPanel.ToolTip>
+      <TextBlock
+        Width="180"
+        Padding="10"
+        VerticalAlignment="Center"
+        FontFamily="SegoeUI"
+        FontSize="16"
+        Text="Override vcpkg include" />
+
+      <TextBox
+        Width="450"
+        Height="30"
+        Margin="0,0,20,0"
+        VerticalContentAlignment="Center"
+        FontFamily="SegoeUI"
+        FontSize="15"
+        Text="{Binding CompilerModel.VcpkgIncludeOverride}" />
+    </WrapPanel>
+
+    <!--  Additional includes  -->
+    <WrapPanel Grid.Row="5" Grid.Column="1">
       <WrapPanel.ToolTip>
         <ToolTip>
           <TextBlock
@@ -180,7 +208,7 @@
         SelectedItem="{Binding CompilerModel.AdditionalIncludes}" />
     </WrapPanel>
 
-    <Grid Grid.Row="6" Grid.Column="1">
+    <Grid Grid.Row="7" Grid.Column="1">
       <Grid.RowDefinitions>
         <RowDefinition Height="auto" />
         <RowDefinition Height="auto" />
