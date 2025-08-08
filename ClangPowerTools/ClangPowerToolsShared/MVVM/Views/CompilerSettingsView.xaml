@@ -1,4 +1,4 @@
-﻿<UserControl
+<UserControl
   x:Class="ClangPowerTools.Views.CompilerSettingsView"
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -6,9 +6,8 @@
   xmlns:local="clr-namespace:ClangPowerTools"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
   xmlns:views="clr-namespace:ClangPowerTools.MVVM.Views"
-  d:DesignHeight="490"
   d:DesignWidth="770"
-  mc:Ignorable="d">
+  mc:Ignorable="d" Height="552">
 
   <!--  Static resources  -->
   <UserControl.Resources>
@@ -20,7 +19,7 @@
   </UserControl.Resources>
 
   <!--  Main grid  -->
-  <Grid>
+  <Grid Margin="0,0,0,-23">
     <Grid.Background>
       <ImageBrush ImageSource="/ClangPowerTools;component/Resources/SettingsBackground.png" Stretch="UniformToFill" />
     </Grid.Background>
@@ -182,7 +181,7 @@
     </WrapPanel>
 
     <!--  Additional includes  -->
-    <WrapPanel Grid.Row="5" Grid.Column="1">
+    <WrapPanel Grid.Row="5" Grid.Column="1" Margin="0,0,0,81">
       <WrapPanel.ToolTip>
         <ToolTip>
           <TextBlock
@@ -208,7 +207,7 @@
         SelectedItem="{Binding CompilerModel.AdditionalIncludes}" />
     </WrapPanel>
 
-    <Grid Grid.Row="7" Grid.Column="1">
+    <Grid Grid.Row="5" Grid.Column="1" Margin="0,50,0,92">
       <Grid.RowDefinitions>
         <RowDefinition Height="auto" />
         <RowDefinition Height="auto" />
@@ -391,7 +390,7 @@
       </WrapPanel>
 
       <!--  Verbose mode  -->
-      <WrapPanel Grid.Row="6" Grid.Column="0">
+      <WrapPanel Grid.Row="4" Grid.Column="1" Margin="0,20,25,19" Grid.RowSpan="2">
         <WrapPanel.ToolTip>
           <ToolTip>
             <TextBlock
@@ -418,7 +417,7 @@
       </WrapPanel>
 
       <!--  Update PowerShell  -->
-      <WrapPanel Grid.Row="7" Grid.Column="0">
+      <WrapPanel Grid.Row="3" Grid.Column="1" Margin="0,5,25,34" Grid.RowSpan="2">
         <WrapPanel.ToolTip>
           <ToolTip>
             <TextBlock
@@ -448,7 +447,7 @@
       </WrapPanel>
 
       <!--  Add cpt alias  -->
-      <WrapPanel Grid.Row="0" Grid.Column="2">
+      <WrapPanel Grid.Column="1" Margin="0,0,290,0">
         <WrapPanel.ToolTip>
           <ToolTip>
             <TextBlock
@@ -478,7 +477,7 @@
       </WrapPanel>
 
       <!--  Support for powershell 7  -->
-      <WrapPanel Grid.Row="1" Grid.Column="2">
+      <WrapPanel Grid.Column="1" Margin="0,39,0,0" Grid.RowSpan="2">
         <WrapPanel.ToolTip>
           <ToolTip>
             <TextBlock
@@ -504,7 +503,7 @@
       </WrapPanel>
 
       <!--  CPU Limit  -->
-      <WrapPanel Grid.Row="2" Grid.Column="2">
+      <WrapPanel Grid.Row="1" Margin="0,39,111,39" Grid.RowSpan="3" Grid.Column="1">
         <WrapPanel.ToolTip>
           <ToolTip>
             <TextBlock

@@ -1330,6 +1330,21 @@ Function Process-Project( [Parameter(Mandatory=$true)] [string]       $vcxprojPa
     # We use the same mechanism for injecting external include paths
     $includeDirectories += @(Get-IncludePathsFromAdditionalOptions)
     $includeDirectories += @(Get-ProjectExternalIncludePaths)
+
+    # Normalize vcpkg includes: if local/override vcpkg is present, drop global vcpkg from additional includes
+    [string[]] $localVcpkgDirs = @()
+    if ((Get-Variable -Name aVcpkgIncludeOverride -ErrorAction SilentlyContinue) -and (![string]::IsNullOrWhiteSpace($aVcpkgIncludeOverride))) {
+      $localVcpkgDirs += $aVcpkgIncludeOverride
+    }
+    $localVcpkgDirs += @($includeDirectories | Where-Object { $_ -match 'vcpkg_installed[\\/].*[\\/]include$' })
+    if ($localVcpkgDirs.Count -gt 0) {
+      $global:additionalIncludeDirectories = @($global:additionalIncludeDirectories | Where-Object { $_ -notmatch 'vcpkg[\\/][Ii]nstalled[\\/].*[\\/]include$' })
+    }
+
+    # Dedupe
+    $includeDirectories = @($includeDirectories | Where-Object { $_ } | Select-Object -Unique)
+    $global:additionalIncludeDirectories = @($global:additionalIncludeDirectories | Where-Object { $_ } | Select-Object -Unique)
+
     Write-Verbose-Array -array $includeDirectories -name "Include directories"
     Add-ToProjectSpecificVariables 'includeDirectories'
 

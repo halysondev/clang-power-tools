@@ -513,6 +513,7 @@ Function Get-LocalVcpkgIncludePaths
     [string[]] $candidates = @(
         (Join-Path (Join-Path $baseDir $triplet) (Join-Path $triplet "include"))
        ,(Join-Path $baseDir (Join-Path $triplet "include"))
+       ,(Join-Path (Join-Path $baseDir $triplet) "include")
     )
 
     foreach ($cand in $candidates)
