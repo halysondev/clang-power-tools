@@ -1331,19 +1331,29 @@ Function Process-Project( [Parameter(Mandatory=$true)] [string]       $vcxprojPa
     $includeDirectories += @(Get-IncludePathsFromAdditionalOptions)
     $includeDirectories += @(Get-ProjectExternalIncludePaths)
 
-    # Normalize vcpkg includes: if local/override vcpkg is present, drop global vcpkg from additional includes
+    # Compute local/override vcpkg include
     [string[]] $localVcpkgDirs = @()
     if ((Get-Variable -Name aVcpkgIncludeOverride -ErrorAction SilentlyContinue) -and (![string]::IsNullOrWhiteSpace($aVcpkgIncludeOverride))) {
       $localVcpkgDirs += $aVcpkgIncludeOverride
     }
-    $localVcpkgDirs += @($includeDirectories | Where-Object { $_ -match 'vcpkg_installed[\\/].*[\\/]include$' })
-    if ($localVcpkgDirs.Count -gt 0) {
-      $global:additionalIncludeDirectories = @($global:additionalIncludeDirectories | Where-Object { $_ -notmatch 'vcpkg[\\/][Ii]nstalled[\\/].*[\\/]include$' })
+    if ($localVcpkgDirs.Count -eq 0) {
+      $localVcpkgDirs = @(Get-LocalVcpkgIncludePaths)
     }
 
-    # Dedupe
+    # If local/override is available, prefer it and drop global vcpkg includes
+    if ($localVcpkgDirs -and $localVcpkgDirs.Count -gt 0) {
+      $includeDirectories = @($includeDirectories | Where-Object { $_ -notmatch 'vcpkg[\\/][Ii]nstalled[\\/].*[\\/]include$' })
+      $global:additionalIncludeDirectories = @($global:additionalIncludeDirectories | Where-Object { $_ -notmatch 'vcpkg[\\/][Ii]nstalled[\\/].*[\\/]include$' })
+      # Ensure local include is present
+      foreach ($p in $localVcpkgDirs) {
+        if ($includeDirectories -notcontains $p) { $includeDirectories += $p }
+      }
+    }
+
+    # Dedupe and sync local var used later in calls
     $includeDirectories = @($includeDirectories | Where-Object { $_ } | Select-Object -Unique)
     $global:additionalIncludeDirectories = @($global:additionalIncludeDirectories | Where-Object { $_ } | Select-Object -Unique)
+    $additionalIncludeDirectories = $global:additionalIncludeDirectories
 
     Write-Verbose-Array -array $includeDirectories -name "Include directories"
     Add-ToProjectSpecificVariables 'includeDirectories'

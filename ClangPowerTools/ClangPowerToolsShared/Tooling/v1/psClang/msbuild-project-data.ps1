@@ -526,25 +526,31 @@ Function Get-LocalVcpkgIncludePaths
 
 Function Get-ProjectExternalIncludePaths()
 {
+    [string] $raw = ""
+
     # 1) explicit override via script parameter
     if ( (VariableExistsAndNotEmpty -name "aVcpkgIncludeOverride") -and (![string]::IsNullOrWhiteSpace($aVcpkgIncludeOverride)) )
     {
-        return Get-ProjCanonizedPaths -rawPaths $aVcpkgIncludeOverride
+        $raw = $aVcpkgIncludeOverride
     }
 
     # 2) auto-detect local vcpkg (manifest) under project/solution dir
     [string[]] $localVcpkgPaths = @(Get-LocalVcpkgIncludePaths)
     if ($localVcpkgPaths -and $localVcpkgPaths.Count -gt 0)
     {
-        return Get-ProjCanonizedPaths -rawPaths ($localVcpkgPaths -join ";")
+        if ($raw) { $raw += ";" }
+        $raw += ($localVcpkgPaths -join ";")
     }
 
-    # 3) fallback to MSBuild ExternalIncludePath (usually user vcpkg)
-    if (!(VariableExistsAndNotEmpty -name "ExternalIncludePath"))
+    # 3) append MSBuild ExternalIncludePath (usually user vcpkg) as fallback
+    if (VariableExistsAndNotEmpty -name "ExternalIncludePath")
     {
-       return @()
+       if ($raw) { $raw += ";" }
+       $raw += $ExternalIncludePath
     }
-    return Get-ProjCanonizedPaths -rawPaths $ExternalIncludePath
+
+    if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
+    return Get-ProjCanonizedPaths -rawPaths $raw
 }
 
 Function Get-PathsFromText([Parameter(Mandatory = $true)][string] $text)
