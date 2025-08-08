@@ -23,7 +23,7 @@ Set-Variable -name kClangFlag32BitPlatform        -value "-m32" -option Constant
 
 Set-Variable -name kVSDefaultWinSDK            -value '8.1'             -option Constant
 Set-Variable -name kVSDefaultWinSDK_XP         -value '7.0'             -option Constant
-Set-Variable -name kDefaultCppStd              -value "stdcpp14"        -option Constant
+Set-Variable -name kDefaultCppStd              -value "stdcpp23preview"        -option Constant
 
 # ------------------------------------------------------------------------------------------------
 Set-Variable -name kCProjectCompile         -value "CompileAsC" -option Constant
