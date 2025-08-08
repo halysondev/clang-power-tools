@@ -435,6 +435,7 @@ Function Get-ProjectPreprocessorDefines()
 
 Function Get-ProjCanonizedPaths([Parameter(Mandatory = $true)][string] $rawPaths)
 {
+    [string[]] $result = @()
     [string[]] $tokens = @($rawPaths -split ";")
 
     foreach ($token in $tokens)
@@ -447,9 +448,11 @@ Function Get-ProjCanonizedPaths([Parameter(Mandatory = $true)][string] $rawPaths
         [string] $includePath = Canonize-Path -base $ProjectDir -child $token.Trim() -ignoreErrors
         if (![string]::IsNullOrEmpty($includePath))
         {
-            $includePath -replace '\\$', ''
+            $result += ($includePath -replace '\\$', '')
         }
     }
+
+    return $result
 }
 
 Function Get-LocalVcpkgIncludePaths
@@ -477,44 +480,59 @@ Function Get-LocalVcpkgIncludePaths
 
     if ([string]::IsNullOrEmpty($baseDir)) { return @() }
 
-    # determine triplet
-    [string] $triplet = ""
-    if (VariableExistsAndNotEmpty -name "VcpkgTriplet") { $triplet = $VcpkgTriplet }
+    # determine candidate triplets (prefer those derived from project settings)
+    [System.Collections.Generic.List[string]] $tripletCandidates = [System.Collections.Generic.List[string]]::new()
 
-    if ([string]::IsNullOrEmpty($triplet))
-    {
+    # 1) Try to detect from Linker AdditionalLibraryDirectories (often shows local vcpkg_installed triplet)
+    try {
+        Set-ProjectItemContext "Link"
+        [string] $libDirs = Get-ProjectItemProperty "AdditionalLibraryDirectories"
+        if ($libDirs) {
+            $libDirs -split ";" | ForEach-Object {
+                $m = [regex]::Match($_, 'vcpkg_installed[\\/]+([^\\/;]+)')
+                if ($m.Success) { $tripletCandidates.Add($m.Groups[1].Value) }
+            }
+        }
+    } catch {}
+
+    # 2) Derive from Platform/Static/CRT if not found above
+    [string] $derivedTriplet = ""
+    try {
         [string] $arch = if ($Platform -ieq "Win32" -or $Platform -ieq "x86") { "x86" } else { "x64" }
         [bool] $useStatic = $false
         if (VariableExistsAndNotEmpty -name "VcpkgUseStatic") { $useStatic = ($VcpkgUseStatic -ieq "true") }
         [bool] $useMD = $true
         if (VariableExistsAndNotEmpty -name "VcpkgUseMD")     { $useMD = ($VcpkgUseMD -ieq "true") }
-        else
-        {
-            # derive CRT MD/MT from RuntimeLibrary when explicit vcpkg flag is not set
-            try {
-                Set-ProjectItemContext "ClCompile"
-                [string] $runtimeLibrary = Get-ProjectItemProperty "RuntimeLibrary"
-                if ($runtimeLibrary)
-                {
-                    if (@("MultiThreaded","MultiThreadedDebug") -contains $runtimeLibrary) { $useMD = $false }
-                    else { $useMD = $true }
-                }
-            } catch {}
+        else {
+            Set-ProjectItemContext "ClCompile"
+            [string] $runtimeLibrary = Get-ProjectItemProperty "RuntimeLibrary"
+            if ($runtimeLibrary) {
+                if (@("MultiThreaded","MultiThreadedDebug") -contains $runtimeLibrary) { $useMD = $false } else { $useMD = $true }
+            }
         }
+        $derivedTriplet = "$arch-windows"
+        if ($useStatic) { if ($useMD) { $derivedTriplet += "-static-md" } else { $derivedTriplet += "-static" } }
+    } catch {}
+    if ($derivedTriplet) { $tripletCandidates.Add($derivedTriplet) }
 
-        $triplet = "$arch-windows"
-        if ($useStatic)
-        {
-            if ($useMD) { $triplet += "-static-md" }
-            else        { $triplet += "-static"    }
-        }
+    # 3) Consider MSBuild-provided VcpkgTriplet as a fallback
+    if (VariableExistsAndNotEmpty -name "VcpkgTriplet") { $tripletCandidates.Add($VcpkgTriplet) }
+
+    # 4) Common fallbacks
+    $tripletCandidates.Add("x64-windows-static")
+    $tripletCandidates.Add("x64-windows")
+    $tripletCandidates.Add("x86-windows-static")
+    $tripletCandidates.Add("x86-windows")
+
+    # Check include folders for candidate triplets
+    [string[]] $candidates = @()
+    foreach ($t in ($tripletCandidates | Select-Object -Unique)) {
+        $candidates += @(
+            (Join-Path (Join-Path $baseDir $t) (Join-Path $t "include"))
+           ,(Join-Path $baseDir (Join-Path $t "include"))
+           ,(Join-Path (Join-Path $baseDir $t) "include")
+        )
     }
-
-    [string[]] $candidates = @(
-        (Join-Path (Join-Path $baseDir $triplet) (Join-Path $triplet "include"))
-       ,(Join-Path $baseDir (Join-Path $triplet "include"))
-       ,(Join-Path (Join-Path $baseDir $triplet) "include")
-    )
 
     foreach ($cand in $candidates)
     {

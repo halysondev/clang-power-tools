@@ -125,6 +125,12 @@ function Evaluate-MSBuildExpression([string] $expression, [switch] $isCondition)
         return $expression
     }
 
+    # sanitize MSBuild expressions that confuse PowerShell parser
+    try {
+        # vcpkg triplet linkage case: ${_ZVcpkgLinkage}${_ZVcpkgLinkageMD} inside a method call
+        $expression = $expression -replace '\$\{_ZVcpkgLinkage\}\$\{_ZVcpkgLinkageMD\}', { '$(' + '$_ZVcpkgLinkage' + ' + ' + '$_ZVcpkgLinkageMD' + ')' }
+    } catch {}
+
     Write-Debug "Intermediate PS expression: $expression"
 
     Initialize-ExpressionVariables $expression
